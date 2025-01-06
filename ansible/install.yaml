@@ -1,0 +1,85 @@
+---
+# foo: boo
+# foo_list:
+#   - val1 
+#   - val2
+# boo_as_list:
+#   - foo: foo_boo
+#   - boo: adw
+#     name: 
+
+
+- name: "install_my_ecommerce"
+  hosts: ecommerce
+  become: yes
+  vars:
+    version: "v10.11.15"
+    app_url: "https://github.com/JakubZajas/computer-programming-4-2024/releases/download/{{version}}/app.jar"
+    app_name: "ecommerce"
+    app_dest_dir: "/opt/{{app_name}}"
+    app_username: "{{app_name}}"
+    port: 8080
+
+  tasks:
+    - name: "create helloworld file"
+      file:
+        path: ~/hello_world.txt
+        state: touch
+    - name: "ensure cowsay exists"
+      package:
+        name: "cowsay"
+        state: present
+
+    - name: "Install Java 17 amaznon Corretto"
+      dnf:
+        name: java-17-amazon-corretto
+        state: present
+
+    - name: Ensure user is present
+      user:
+        name: "{{app_username}}"
+        state: present
+
+    - name: "Create app directory"
+      file:
+        path: "{{app_dest_dir}}"
+        state: directory
+        owner: "{{app_username}}"
+        group: "{{app_username}}"
+    - name: "Download my application"
+      get_url:
+        url: "{{app_url}}"
+        dest: "{{app_dest_dir}}/app.jar"
+        owner: "{{app_username}}"
+        group: "{{app_username}}"
+    
+    - name: "configure systemd"
+      template:
+        src: templates/ecommerce.service.j2
+        dest: "/etc/systemd/system/{{app_name}}.service"
+
+    - name: "restart and make my service autostarted"
+      systemd:
+        name: "{{app_name}}"
+        state: restarted
+        daemon_reload: yes
+        enabled: yes
+
+- name : "setup load balancer"
+  become: yes
+  hosts: loadbalancer
+  vars:
+    ecommecre_ips: 
+  tasks: 
+  - name: "download nginx"
+    package:
+      name: "nginx"
+      state: present
+
+  - name: "configure nginx"
+    template:
+      src: templates/lb.conf.j2
+      dest: /etc/nginx/conf.d/lb.conf
+
+  - name: "restart nginbx"
+    
